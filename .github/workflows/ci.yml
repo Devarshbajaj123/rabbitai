@@ -1,0 +1,79 @@
+name: CI — Lint & Build
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ---------------------------------------------------------------
+  # Backend — lint with flake8, validate imports
+  # ---------------------------------------------------------------
+  backend:
+    name: Backend checks
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install flake8
+
+      - name: Lint with flake8
+        run: flake8 . --max-line-length 120 --exclude __pycache__
+
+      - name: Validate app starts
+        env:
+          GEMINI_API_KEY: test
+          EMAIL_ADDRESS: test@test.com
+          EMAIL_PASSWORD: test
+        run: |
+          python -c "from main import app; print('Backend imports OK')"
+
+  # ---------------------------------------------------------------
+  # Frontend — lint, build
+  # ---------------------------------------------------------------
+  frontend:
+    name: Frontend checks
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+
+  # ---------------------------------------------------------------
+  # Docker — validate compose builds
+  # ---------------------------------------------------------------
+  docker:
+    name: Docker build validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build backend image
+        run: docker build -t rabbit-ai-backend ./backend
+
+      - name: Build frontend image
+        run: docker build -t rabbit-ai-frontend ./frontend
